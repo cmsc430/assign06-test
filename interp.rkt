@@ -44,16 +44,18 @@
         (interp-env e (append (zip xs vs) r) ds)])]
     [(list 'cond cs ... `(else ,en))
      (interp-cond-env cs en r ds)]
-    [`(,f . ,es)
-     (match (interp-env* es r ds)
-       [(list vs ...)
-        (match (defns-lookup ds f)
-          [`(define (,f ,xs ...) ,e)
-           ; check arity matches
-           (if (= (length xs) (length vs))
-               (interp-env e (zip xs vs) ds)
-               'err)])])]
+    [`(apply ,f ,e) (apply-fun f (interp-env e r ds) ds)]
+    [`(,f . ,es)    (apply-fun f (interp-env* es r ds) ds)]
     [_ 'err]))
+
+
+;; Variable (Listof Value) (Listof Defn) -> Answer
+(define (apply-fun f vs ds)
+  (match (defns-lookup ds f)
+    [`(define (,f ,xs ...) ,e)
+     (if (= (length xs) (length vs))
+         (interp-env e (zip xs vs) ds)
+         'err)]))
 
 
 ;; (Listof Defn) Symbol -> Defn
@@ -132,7 +134,7 @@
     [(list '< (? integer? v0) (? integer? v1)) (< v0 v1)]
     [(list '<= (? integer? v0) (? integer? v1)) (<= v0 v1)]
     [(list 'char=? (? char? v0) (? char? v1)) (char=? v0 v1)]
-    [(list 'boolean=? (? boolean? v0) (? boolean? v1)) (boolean=? v0 v1)]    
+    [(list 'boolean=? (? boolean? v0) (? boolean? v1)) (boolean=? v0 v1)]
     [_ 'err]))
 
 ;; REnv Variable -> Answer
