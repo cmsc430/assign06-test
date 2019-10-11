@@ -78,6 +78,7 @@
 (check-false (expr? '(make-string #f)))
 (check-false (expr? '(make-string #f #f #f)))
 
+(check-true (prog? 5))
 (check-true (prog? '(begin (define (f x) x)
                            (f 5))))
 (check-true (prog? '(begin (define (f x y z) x)
@@ -85,6 +86,11 @@
 (check-true (prog? '(begin (define (f x y z) (g x))
                            (define (g q) q)
                            (f 5 6 7))))
+
+(check-false (prog? '(begin (define (f f) f)
+                            (f 5))))
+
+
 
 (check-true (closed? 7))
 (check-true (closed? "asdf"))
@@ -155,6 +161,17 @@
                        (map-add1 (cons 1 (cons 2 (cons 3 '()))))))
                '(2 3 4))
 
+(check-equal? (run
+               '(begin
+                  (define (explode str)
+                    (explode/i str 0))
+                  (define (explode/i str i)
+                    (if (= (string-length str) i)
+                        '()
+                        (cons (string-ref str i)
+                              (explode/i str (add1 i)))))
+                  (explode "fred")))
+              '(#\f #\r #\e #\d))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
