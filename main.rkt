@@ -9,14 +9,9 @@
 ;; Code for submission needs to be in ".." directory
 (require (only-in "../compile.rkt" compile)
          (only-in "../asm/interp.rkt" asm-interp)
-         (only-in "../parse.rkt" parse)
-         (only-in "../syntax.rkt" expr? closed?)
-         (only-in "../lex.rkt" lex-string lex-port))
+         (only-in "../syntax.rkt" prog? expr? closed?))
 
 
-(check-equal?
- (parse (lex-string "#lang racket (let ((x 1)) x)"))
- '(let ((x 1)) x))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Syntax tests
@@ -83,6 +78,14 @@
 (check-false (expr? '(make-string #f)))
 (check-false (expr? '(make-string #f #f #f)))
 
+(check-true (prog? '(begin (define (f x) x)
+                           (f 5))))
+(check-true (prog? '(begin (define (f x y z) x)
+                           (f 5 6 7))))
+(check-true (prog? '(begin (define (f x y z) (g x))
+                           (define (g q) q)
+                           (f 5 6 7))))
+
 (check-true (closed? 7))
 (check-true (closed? "asdf"))
 (check-true (closed? ""))
@@ -111,32 +114,61 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Compiler tests
 
+(define (run p)
+  (asm-interp (compile p)))
+
 (check-equal?
- (asm-interp (compile '(let ((x 1)) x)))
+ (run '(let ((x 1)) x))
  (interp '(let ((x 1)) x)))
+
+(check-equal? (run
+               '(begin (define (f x) x)
+                       (f 5)))
+              5)
+
+(check-equal? (run
+               '(begin (define (tri x)
+                         (if (zero? x)
+                             0
+                             (+ x (tri (sub1 x)))))
+                       (tri 9)))
+              45)
+
+(check-equal? (run
+               '(begin (define (even? x)
+                         (if (zero? x)
+                             #t
+                             (odd? (sub1 x))))
+                       (define (odd? x)
+                         (if (zero? x)
+                             #f
+                             (even? (sub1 x))))
+                       (even? 101)))
+              #f)
+
+(check-equal? (run
+               '(begin (define (map-add1 xs)
+                         (if (empty? xs)
+                             '()
+                             (cons (add1 (car xs))
+                                   (map-add1 (cdr xs)))))
+                       (map-add1 (cons 1 (cons 2 (cons 3 '()))))))
+               '(2 3 4))
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Random tests
-
-(define tokens
-  (parameterize ((current-directory "progs"))
-    (for/list ([fn (directory-list)])
-      (call-with-input-file fn lex-port))))
 
 (define parses
   (parameterize ((current-directory "progs"))
     (for/list ([fn (directory-list)])
       (call-with-input-file fn read-prog))))
 
-(for ([t tokens]
-      [p parses])
-  (check-not-exn (lambda () (parse t)) t)
-  (check-equal? (parse t) p))
-
 (for ([p parses])
-  (check-true (and (expr? p)
-                   (closed? p))))
+  (check-true (and (prog? p)
+                   (closed? p))
+              p))
 
 (for ([p parses])
   (check-equal? (asm-interp (compile p))
