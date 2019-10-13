@@ -180,14 +180,18 @@
 (define parses
   (parameterize ((current-directory "progs"))
     (for/list ([fn (directory-list)])
-      (call-with-input-file fn read-prog))))
+      (list fn (call-with-input-file fn read-prog)))))
 
 (for ([p parses])
-  (check-true (and (prog? p)
-                   (closed? p))
-              p))
+  (match p
+    [(list fn p)
+     (check-true (and (prog? p)
+                      (closed? p))
+                 (list fn p))]))
 
 (for ([p parses])
-  (check-equal? (asm-interp (compile p))
-                (interp p)
-                p))
+  (match p
+    [(list fn p)
+     (check-equal? (asm-interp (compile p))
+                   (interp p)
+                   (list fn p))]))
