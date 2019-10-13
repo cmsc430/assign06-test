@@ -44,7 +44,11 @@
         (interp-env e (append (zip xs vs) r) ds)])]
     [(list 'cond cs ... `(else ,en))
      (interp-cond-env cs en r ds)]
-    [`(apply ,f ,e) (apply-fun f (interp-env e r ds) ds)]
+    [`(apply ,f ,e)
+     (let ((vs (interp-env e r ds)))
+       (if (list? vs)
+           (apply-fun f vs ds)
+           'err))]
     [`(,f . ,es)    (apply-fun f (interp-env* es r ds) ds)]
     [_ 'err]))
 
@@ -55,6 +59,10 @@
     [`(define (,f ,xs ...) ,e)
      (if (= (length xs) (length vs))
          (interp-env e (zip xs vs) ds)
+         'err)]
+    [`(define (,f ,xs ... . ,r) ,e)
+     (if (<= (length xs) (length vs))
+         (interp-env e (zip/remainder xs vs r) ds)
          'err)]))
 
 
@@ -162,3 +170,10 @@
     [('() '()) '()]
     [((cons x xs) (cons y ys))
      (cons (list x y) (zip xs ys))]))
+
+;; like zip but ys can be longer and remainder is associated with r
+(define (zip/remainder xs ys r)
+  (match* (xs ys)
+    [('() ys) (list (list r ys))]
+    [((cons x xs) (cons y ys))
+     (cons (list x y) (zip/remainder xs ys r))]))
