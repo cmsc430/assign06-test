@@ -192,6 +192,7 @@
 (for ([p parses])
   (match p
     [(list fn p)
-     (check-equal? (asm-interp (compile p))
+     (check-equal? (with-handlers ([exn:fail? identity])
+                     (asm-interp (compile p)))
                    (interp p)
                    (list fn p))]))
